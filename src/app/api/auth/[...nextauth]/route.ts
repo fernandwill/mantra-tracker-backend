@@ -1,9 +1,11 @@
-import NextAuth from 'next-auth'
+import NextAuth, { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import GitHubProvider from 'next-auth/providers/github'
 import { createUser, getUserByEmail } from '@/lib/database'
+import type { Account, User as NextAuthUser, Profile } from 'next-auth'
+import type { JWT } from 'next-auth/jwt'
 
-const handler = NextAuth({
+const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
@@ -16,7 +18,11 @@ const handler = NextAuth({
   ],
   
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile }: { 
+      user: NextAuthUser;
+      account: Account | null;
+      profile?: Profile | undefined;
+    }) {
       try {
         if (!user.email) return false
         
@@ -42,7 +48,10 @@ const handler = NextAuth({
       }
     },
     
-    async session({ session, token }) {
+    async session({ session, token }: {
+      session: any;
+      token: JWT;
+    }) {
       if (session.user?.email) {
         const dbUser = await getUserByEmail(session.user.email)
         if (dbUser) {
@@ -52,7 +61,10 @@ const handler = NextAuth({
       return session
     },
     
-    async jwt({ token, user }) {
+    async jwt({ token, user }: {
+      token: JWT;
+      user?: NextAuthUser;
+    }) {
       if (user?.email) {
         const dbUser = await getUserByEmail(user.email)
         if (dbUser) {
@@ -65,7 +77,6 @@ const handler = NextAuth({
   
   pages: {
     signIn: '/auth/signin',
-    signUp: '/auth/signup',
   },
   
   session: {
@@ -73,6 +84,8 @@ const handler = NextAuth({
   },
   
   secret: process.env.NEXTAUTH_SECRET,
-})
+}
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }

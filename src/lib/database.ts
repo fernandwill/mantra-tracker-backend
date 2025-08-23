@@ -1,13 +1,35 @@
 import sqlite3 from 'sqlite3'
-import { promisify } from 'util'
 
 // Database connection
 const db = new sqlite3.Database('./mantra_tracker.db')
 
-// Promisify database methods
-const dbRun = promisify(db.run.bind(db))
-const dbGet = promisify(db.get.bind(db))
-const dbAll = promisify(db.all.bind(db))
+// Promisify database methods with proper parameter handling
+const dbRun = (sql: string, params: any[] = []) => {
+  return new Promise<void>((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) reject(err)
+      else resolve()
+    })
+  })
+}
+
+const dbGet = (sql: string, params: any[] = []) => {
+  return new Promise<any>((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err)
+      else resolve(row)
+    })
+  })
+}
+
+const dbAll = (sql: string, params: any[] = []) => {
+  return new Promise<any[]>((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err)
+      else resolve(rows)
+    })
+  })
+}
 
 // User interface
 export interface User {
@@ -28,7 +50,6 @@ export interface Mantra {
   userId: string
   title: string
   text: string
-  category: string
   goal: number
   createdAt: Date
   updatedAt: Date
@@ -68,7 +89,6 @@ export async function initializeDatabase() {
         userId TEXT NOT NULL,
         title TEXT NOT NULL,
         text TEXT NOT NULL,
-        category TEXT NOT NULL,
         goal INTEGER NOT NULL,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -151,9 +171,9 @@ export async function createMantra(userId: string, mantraData: Omit<Mantra, 'id'
   const now = new Date().toISOString()
   
   await dbRun(`
-    INSERT INTO mantras (id, userId, title, text, category, goal, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, userId, mantraData.title, mantraData.text, mantraData.category, mantraData.goal, now, now])
+    INSERT INTO mantras (id, userId, title, text, goal, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `, [id, userId, mantraData.title, mantraData.text, mantraData.goal, now, now])
   
   return {
     id,
@@ -175,6 +195,60 @@ export async function getUserMantras(userId: string): Promise<Mantra[]> {
   } catch (error) {
     console.error('Error getting user mantras:', error)
     return []
+  }
+}
+
+export async function updateMantra(id: string, userId: string, updateData: Partial<Omit<Mantra, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>): Promise<Mantra | null> {
+  try {
+    const now = new Date().toISOString()
+    const fields = []
+    const values = []
+    
+    if (updateData.title !== undefined) {
+      fields.push('title = ?')
+      values.push(updateData.title)
+    }
+    if (updateData.text !== undefined) {
+      fields.push('text = ?')
+      values.push(updateData.text)
+    }
+    if (updateData.goal !== undefined) {
+      fields.push('goal = ?')
+      values.push(updateData.goal)
+    }
+    
+    fields.push('updatedAt = ?')
+    values.push(now)
+    values.push(id)
+    values.push(userId)
+    
+    await dbRun(
+      `UPDATE mantras SET ${fields.join(', ')} WHERE id = ? AND userId = ?`,
+      values
+    )
+    
+    // Return updated mantra
+    const row = await dbGet('SELECT * FROM mantras WHERE id = ? AND userId = ?', [id, userId]) as any
+    if (!row) return null
+    
+    return {
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt)
+    }
+  } catch (error) {
+    console.error('Error updating mantra:', error)
+    return null
+  }
+}
+
+export async function deleteMantra(id: string, userId: string): Promise<boolean> {
+  try {
+    await dbRun('DELETE FROM mantras WHERE id = ? AND userId = ?', [id, userId])
+    return true
+  } catch (error) {
+    console.error('Error deleting mantra:', error)
+    return false
   }
 }
 
