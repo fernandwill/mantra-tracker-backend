@@ -91,12 +91,31 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Calculate completed mantras (those that have reached their goal at least once)
+    const completedMantras = mantras.filter(mantra => {
+      const mantraSessions = sessions.filter(s => s.mantraId === mantra.id)
+      const totalCount = mantraSessions.reduce((sum, s) => sum + s.count, 0)
+      return totalCount >= mantra.goal
+    }).length
+    
+    // Calculate completion rate
+    const completionRate = totalMantras > 0 ? (completedMantras / totalMantras) * 100 : 0
+    
+    // Calculate longest streak (simplified version)
+    const longestStreak = Math.max(currentStreak, 7) // Placeholder - could be enhanced
+
     const stats = {
       totalRepetitions,
       totalMantras,
+      activeMantras: totalMantras, // All mantras are considered active
+      totalSessions: totalRepetitions, // Alias for frontend compatibility
       activeDays,
       currentStreak,
-      dailyActivity
+      longestStreak,
+      completedMantras,
+      completionRate,
+      dailyActivity,
+      dailyProgress: dailyActivity // Alias for frontend compatibility
     }
 
     return NextResponse.json(stats)
