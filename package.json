@@ -14,9 +14,9 @@
     "jsonwebtoken": "^9.0.2",
     "next": "15.4.7",
     "next-auth": "^4.24.11",
+    "pg": "^8.12.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "sqlite3": "^5.1.7",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -24,6 +24,7 @@
     "@types/cors": "^2.8.17",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^20",
+    "@types/pg": "^8.11.10",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
